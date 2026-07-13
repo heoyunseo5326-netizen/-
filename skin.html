@@ -406,27 +406,35 @@ function buildSections() {
     var container = document.getElementById('card-container');
     var protectedContainer = document.getElementById('protected-card-container');
     
-    // 두 컨테이너가 모두 없더라도 후속 스크립트(아이콘, 프로필 등)가 실행될 수 있도록 
-    // 통째로 return하지 않고, 보호글 정리 후 안전하게 빠져나가도록 구조를 잡아줍니다.
     var cards = Array.from(document.querySelectorAll('.ds-card, .ds-protected-card'));
 
+    // 공개글이 없거나 수집 공간이 없을 때의 예외 처리
     if (!container || cards.length === 0) {
-        // 공개글이 없어서 카드 배열이 비었더라도, 보호글 파싱 함수는 실행해 줍니다.
-        if (typeof initProtectedCards === 'function') {
+        // [핵심 변경] 티스토리의 보호글 섹션 빌드 함수를 직접 호출해 줍니다.
+        if (typeof buildProtectedSection === 'function') {
+            buildProtectedSection();
+        } else if (typeof initProtectedCards === 'function') {
             initProtectedCards();
         }
-        // 수집소(staging) 엘리먼트들이 화면에 지저분하게 남지 않도록 제거해 줍니다.
-        document.querySelectorAll('.ds-card-staging, .ds-protected-staging').forEach(function(el) {
+        
+        // 수집소(staging) 엘리먼트들이 화면에 남지 않도록 제거
+        document.querySelectorAll('.ds-card-staging').forEach(function(el) {
             if (el.parentNode) el.parentNode.removeChild(el);
         });
         
-        // 중요: 여기서 바로 return을 하더라도, 호출부(Window.onload 등)에서 
-        // 뒤이어 나오는 다른 초기화 함수(Notice, Lucide 아이콘 등)가 끊기지 않게 됩니다.
+        // 중요: 스크립트 흐름이 완전히 끊기지 않도록 후속 카테고리 수집 함수를 실행하고 마칩니다.
+        if (typeof collectNewCategories === 'function') collectNewCategories();
         return;
     }
 
-    /* 카테고리별 분류 */
+    /* 카테고리별 분류 (이하 기존 코드 그대로 유지) */
     var showUncat = '[##_var_showUncategorized_##]'.trim();
+    var allCats = new Set();
+    cards.forEach(function(card) {
+        var cat = (card.getAttribute('data-category') || '').trim();
+        var isUncat = !cat || cat === '카테고리 없음';
+        allCats.add(isUncat ? '__미분류__' : cat);
+    });
 
     /* 전체 카테고리 수 미리 파악 (숨김 처리 전 기준) */
     var allCats = new Set();
