@@ -261,8 +261,7 @@
         <div class="post-meta">
           <a class="post-cat-pill" href="[##_article_rep_category_link_##]">[##_article_rep_category_##]</a>
         </div>
-        <h1 class="post-title" id="protected-post-title">[##_article_rep_title_##]</h1>
-        <p class="post-subtitle" id="protected-post-subtitle"></p>
+        <h1 class="post-title" style="visibility:visible;">[##_article_rep_title_##]</h1>
         <div class="post-meta-bottom">
           <span class="post-date">[##_article_rep_simple_date_##]</span>
         </div>
@@ -402,37 +401,16 @@
   };
 
   /* ── 카드 수집 + 카테고리별 섹션 구성 ── */
-function buildSections() {
+  function buildSections() {
     var container = document.getElementById('card-container');
-    var protectedContainer = document.getElementById('protected-card-container');
+    if (!container) return;
+
+    /* 페이지 전체에서 카드 수집 — 일반 카드 + 보호글 카드 함께 */
     var cards = Array.from(document.querySelectorAll('.ds-card, .ds-protected-card'));
+    if (cards.length === 0) return;
 
-    // 1. 공개글이 없거나 수집 공간이 없을 때의 안전한 예외 처리
-    if (!container || cards.length === 0) {
-        // 원래 buildProtectedSection()의 파괴 로직을 우회하고, 
-        // 보호글 카드 파싱(initProtectedCards)만 다이렉트로 안전하게 실행합니다.
-        if (typeof initProtectedCards === 'function') {
-            initProtectedCards();
-        }
-        
-        // 수집소(staging) 엘리먼트들이 화면에 남지 않도록 제거
-        document.querySelectorAll('.ds-card-staging, .ds-protected-staging').forEach(function(el) {
-            if (el.parentNode) el.parentNode.removeChild(el);
-        });
-        
-        // 헤더, 프로필, 카테고리 렌더링이 끊기지 않도록 후속 함수 강제 처리
-        if (typeof collectNewCategories === 'function') collectNewCategories();
-        return;
-    }
-
-    /* 카테고리별 분류 (이하 기존 코드와 100% 동일하게 유지) */
+    /* 카테고리별 분류 */
     var showUncat = '[##_var_showUncategorized_##]'.trim();
-    var allCats = new Set();
-    cards.forEach(function(card) {
-        var cat = (card.getAttribute('data-category') || '').trim();
-        var isUncat = !cat || cat === '카테고리 없음';
-        allCats.add(isUncat ? '__미분류__' : cat);
-    });
 
     /* 전체 카테고리 수 미리 파악 (숨김 처리 전 기준) */
     var allCats = new Set();
@@ -447,45 +425,47 @@ function buildSections() {
       var cat = (card.getAttribute('data-category') || '').trim();
       var isUncat = !cat || cat === '카테고리 없음';
       var key = isUncat ? '__미분류__' : cat;
-
       /* 카테고리 없는 글 숨김 설정 시 제외 — 홈에서만 적용 */
-        var isHomePage = location.pathname === '/' || location.pathname === '';
-        if (isUncat && showUncat === 'hide' && isHomePage) return;
-        if (!sections[key]) {
-            sections[key] = [];
-            order.push(key);
-        }
-        sections[key].push(card);
+      var isHomePage = location.pathname === '/' || location.pathname === '';
+      if (isUncat && showUncat === 'hide' && isHomePage) return;
+      if (!sections[key]) {
+        sections[key] = [];
+        order.push(key);
+      }
+      sections[key].push(card);
     });
 
     /* 티스토리 카테고리 모달 순서로 정렬, 미분류는 맨 뒤 */
     var catModalOrder = Array.from(document.querySelectorAll('.cat-modal-body li a'))
-        .map(function(a) {
-            var text = '';
-            a.childNodes.forEach(function(node) { if (node.nodeType === 3) text += node.textContent; });
-            return text.trim();
-        })
-        .filter(Boolean);
-        
+      .map(function(a) {
+        var text = '';
+        a.childNodes.forEach(function(node) {
+          if (node.nodeType === 3) text += node.textContent;
+        });
+        return text.trim();
+      })
+      .filter(Boolean);
+
     order.sort(function(a, b) {
-        if (a === '__미분류__') return 1;
-        if (b === '__미분류__') return -1;
-        var ia = catModalOrder.indexOf(a);
-        var ib = catModalOrder.indexOf(b);
+      if (a === '__미분류__') return 1;
+      if (b === '__미분류__') return -1;
+      var ia = catModalOrder.indexOf(a);
+      var ib = catModalOrder.indexOf(b);
       /* 모달에 없는 카테고리는 맨 뒤로 */
-        if (ia === -1 && ib === -1) return a.localeCompare(b, 'ko');
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
+      if (ia === -1 && ib === -1) return a.localeCompare(b, 'ko');
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
     });
 
     /* 툴바 삽입 */
     var toolbar = document.createElement('div');
     toolbar.className = 'list-toolbar';
-    toolbar.innerHTML = '<div class="toolbar-right">' +
+    toolbar.innerHTML =
+      '<div class="toolbar-right">' +
         '<button class="layout-btn active" id="btn-grid" onclick="setLayout(\'grid\')" title="그리드"><i data-lucide="layout-grid"></i></button>' +
         '<button class="layout-btn" id="btn-list" onclick="setLayout(\'list\')" title="리스트"><i data-lucide="layout-list"></i></button>' +
-        '</div>';
+      '</div>';
     container.appendChild(toolbar);
 
     /* 카테고리별 섹션 생성 */
@@ -493,45 +473,48 @@ function buildSections() {
     /* 분류 전체보기(/category 최상위)일 때는 구분 없이 라벨 하나만 */
     var isAllCatPage = location.pathname === '/category' || location.pathname === '/category/';
     var showCatLabel = (allCats.size > 1 || isCatPage) && !isAllCatPage;
-    
+
     if (isAllCatPage) {
       /* 전체보기 라벨 1개 */
-        var allLabel = document.createElement('p');
-        allLabel.className = 'category-label';
-        allLabel.textContent = '분류 전체보기';
-        container.appendChild(allLabel);
-
+      var allLabel = document.createElement('p');
+      allLabel.className = 'category-label';
+      allLabel.textContent = '분류 전체보기';
+      container.appendChild(allLabel);
       /* 모든 카드를 카테고리 구분 없이 하나의 그리드에 */
-        var allGrid = document.createElement('div');
-        allGrid.className = 'card-grid';
-        order.forEach(function(key) {
-            sections[key].forEach(function(card) { allGrid.appendChild(card); });
+      var allGrid = document.createElement('div');
+      allGrid.className = 'card-grid';
+      order.forEach(function(key) {
+        sections[key].forEach(function(card) {
+          allGrid.appendChild(card);
         });
-        container.appendChild(allGrid);
+      });
+      container.appendChild(allGrid);
     } else {
-        order.forEach(function(key) {
-            if (showCatLabel) {
-                var label = document.createElement('p');
-                label.className = 'category-label';
-                label.textContent = key === '__미분류__' ? '미분류' : key;
-                container.appendChild(label);
-            }
-            var grid = document.createElement('div');
-            grid.className = 'card-grid';
-            sections[key].forEach(function(card) { grid.appendChild(card); });
-            container.appendChild(grid);
+      order.forEach(function(key) {
+        if (showCatLabel) {
+          var label = document.createElement('p');
+          label.className = 'category-label';
+          label.textContent = key === '__미분류__' ? '미분류' : key;
+          container.appendChild(label);
+        }
+        var grid = document.createElement('div');
+        grid.className = 'card-grid';
+        sections[key].forEach(function(card) {
+          grid.appendChild(card);
         });
+        container.appendChild(grid);
+      });
     }
 
     /* 수집소(staging) 제거 */
     document.querySelectorAll('.ds-card-staging').forEach(function(el) {
-        el.parentNode.removeChild(el);
+      el.parentNode.removeChild(el);
     });
 
     /* 카드 이동 완료 후 커미션 파싱 실행 */
     initCards();
-    if (typeof collectNewCategories === 'function') collectNewCategories();
-}
+    collectNewCategories();
+  }
 
   /* ── 공지 카드 수집 + 섹션 구성 ── */
   function buildNoticeSection() {
@@ -575,26 +558,7 @@ function buildSections() {
   function initProtectedCards() {
     var cards = document.querySelectorAll('.ds-protected-card');
     cards.forEach(function(card) {
-      var nameEl    = card.querySelector('.card-name');
       var cardBody  = card.querySelector('.card-body');
-      var summaryEl = card.querySelector('.card-summary');
-
-      /* 제목 태그 제거 + SUB 파싱 */
-      if (nameEl) {
-        var rawTitle = nameEl.textContent || '';
-        var subMatch = rawTitle.match(/\[SUB:([^\]]+)\]/i);
-        var sub = subMatch ? subMatch[1].trim() : '';
-        var cleanTitle = rawTitle
-          .replace(/\[OPEN\]/gi, '')
-          .replace(/\[CLOSE\]/gi, '')
-          .replace(/\[PRICE[:\s]*[0-9,]+\]/gi, '')
-          .replace(/\[SUB:[^\]]+\]/gi, '')
-          .trim();
-        nameEl.textContent = cleanTitle;
-        if (sub && summaryEl) {
-          summaryEl.textContent = sub;
-        }
-      }
 
       /* 날짜 행 — 링크 복사 버튼 */
       var dateEl = card.querySelector('.card-date');
@@ -1019,26 +983,6 @@ function buildSections() {
       }
     }
 
-    /* ── 보호글 폼 화면 제목 태그 제거 + SUB 파싱 ── */
-    var protectedTitleEl    = document.getElementById('protected-post-title');
-    var protectedSubtitleEl = document.getElementById('protected-post-subtitle');
-    if (protectedTitleEl) {
-      var rawP = protectedTitleEl.textContent || '';
-      var subMatchP = rawP.match(/\[SUB:([^\]]+)\]/i);
-      var subP = subMatchP ? subMatchP[1].trim() : '';
-      var cleanP = rawP
-        .replace(/\[OPEN\]/gi, '')
-        .replace(/\[CLOSE\]/gi, '')
-        .replace(/\[PRICE[:\s]*[0-9,]+\]/gi, '')
-        .replace(/\[SUB:[^\]]+\]/gi, '')
-        .trim();
-      protectedTitleEl.textContent = cleanP;
-      protectedTitleEl.style.visibility = 'visible';
-      if (subP && protectedSubtitleEl) {
-        protectedSubtitleEl.textContent = subP;
-      }
-    }
-
     /* ── 브라우저 탭 제목 태그 제거 ── */
     document.title = document.title
       .replace(/\[OPEN\]/gi, '')
@@ -1362,9 +1306,8 @@ function buildSections() {
 
 
 <!--
-  돌딤섬 스킨 v1.2.1
+  돌딤섬 스킨 v1.2.0
   - 보호글 카드 목록 노출 + 비밀번호 입력 폼 지원 추가
-  - 비밀글 카드/폼 화면에서 [SUB:] 등 라벨이 제목에 노출되는 오류 수정
 
   Credits
   - Pretendard (SIL OFL 1.1) https://github.com/orioncactus/pretendard
