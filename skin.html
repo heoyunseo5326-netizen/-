@@ -402,13 +402,21 @@
   };
 
   /* ── 카드 수집 + 카테고리별 섹션 구성 ── */
-  function buildSections() {
-    var container = document.getElementById('card-container');
-    if (!container) return;
+ function buildSections() {
+var container = document.getElementById('card-container');
+/* 공개글이 없어도 보호글 컨테이너가 따로 있을 수 있으므로 container 체크 방식을 보완합니다. */
+var protectedContainer = document.getElementById('protected-card-container');
+if (!container && !protectedContainer) return;
 
-    /* 페이지 전체에서 카드 수집 — 일반 카드 + 보호글 카드 함께 */
-    var cards = Array.from(document.querySelectorAll('.ds-card, .ds-protected-card'));
-    if (cards.length === 0) return;
+/* 페이지 전체에서 카드 수집 — 일반 카드 + 보호글 카드 함께 */
+var cards = Array.from(document.querySelectorAll('.ds-card, .ds-protected-card'));
+
+/* 일반 카드가 없더라도 보호글 카드가 존재한다면 계속 진행할 수 있도록 수정 */
+if (cards.length === 0) {
+    // 공개글은 없지만 보호글 카드만 존재하는 경우를 위해 정리 함수들을 강제 실행해줍니다.
+    if (typeof initProtectedCards === 'function') initProtectedCards();
+    return;
+}
 
     /* 카테고리별 분류 */
     var showUncat = '[##_var_showUncategorized_##]'.trim();
