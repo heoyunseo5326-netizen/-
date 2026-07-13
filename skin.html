@@ -402,21 +402,28 @@
   };
 
   /* ── 카드 수집 + 카테고리별 섹션 구성 ── */
- function buildSections() {
-var container = document.getElementById('card-container');
-/* 공개글이 없어도 보호글 컨테이너가 따로 있을 수 있으므로 container 체크 방식을 보완합니다. */
-var protectedContainer = document.getElementById('protected-card-container');
-if (!container && !protectedContainer) return;
+function buildSections() {
+    var container = document.getElementById('card-container');
+    var protectedContainer = document.getElementById('protected-card-container');
+    
+    // 두 컨테이너가 모두 없더라도 후속 스크립트(아이콘, 프로필 등)가 실행될 수 있도록 
+    // 통째로 return하지 않고, 보호글 정리 후 안전하게 빠져나가도록 구조를 잡아줍니다.
+    var cards = Array.from(document.querySelectorAll('.ds-card, .ds-protected-card'));
 
-/* 페이지 전체에서 카드 수집 — 일반 카드 + 보호글 카드 함께 */
-var cards = Array.from(document.querySelectorAll('.ds-card, .ds-protected-card'));
-
-/* 일반 카드가 없더라도 보호글 카드가 존재한다면 계속 진행할 수 있도록 수정 */
-if (cards.length === 0) {
-    // 공개글은 없지만 보호글 카드만 존재하는 경우를 위해 정리 함수들을 강제 실행해줍니다.
-    if (typeof initProtectedCards === 'function') initProtectedCards();
-    return;
-}
+    if (!container || cards.length === 0) {
+        // 공개글이 없어서 카드 배열이 비었더라도, 보호글 파싱 함수는 실행해 줍니다.
+        if (typeof initProtectedCards === 'function') {
+            initProtectedCards();
+        }
+        // 수집소(staging) 엘리먼트들이 화면에 지저분하게 남지 않도록 제거해 줍니다.
+        document.querySelectorAll('.ds-card-staging, .ds-protected-staging').forEach(function(el) {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        });
+        
+        // 중요: 여기서 바로 return을 하더라도, 호출부(Window.onload 등)에서 
+        // 뒤이어 나오는 다른 초기화 함수(Notice, Lucide 아이콘 등)가 끊기지 않게 됩니다.
+        return;
+    }
 
     /* 카테고리별 분류 */
     var showUncat = '[##_var_showUncategorized_##]'.trim();
